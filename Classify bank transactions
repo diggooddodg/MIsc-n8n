@@ -1,0 +1,459 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        0
+      ],
+      "id": "4818ad52-9891-4433-b837-6a544bbb727e",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "unique_codes",
+          "mode": "list",
+          "cachedResultName": "unique_codes"
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "amount_sum"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        0
+      ],
+      "id": "23a0c060-588a-453f-94fe-b1cba48bbc4c",
+      "name": "Get all transaction codes",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "StXVcNKJOLRzEChH",
+          "name": "Postgres bank transactions"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ramsey_categories",
+          "mode": "list",
+          "cachedResultName": "ramsey_categories"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -208,
+        0
+      ],
+      "id": "8179b505-62b8-41db-8f60-2f8483a1fc68",
+      "name": "Get Ramsey categories",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "StXVcNKJOLRzEChH",
+          "name": "Postgres bank transactions"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.details }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "=You are an expert in categorising bank transactions according to Dave Ramsey's approach.\n\nReview the code ({{ $json.details }}) for the bank transaction and assign the most appropriate category from this list:\n{{$('Aggregate').item.json.category_name}}\n\nReturn your response as a JSON object with exactly three fields:\n- \"id\": the original record ID ({{$json.id}})\n- \"code\": the original transaction code ({{ $json.details }})\n- \"category\": the assigned Dave Ramsey category\n\nIf you dont have enough information to assign a category then output \"unknown\" for the category\n\nNote that:\n- Z is a petrol station\n- Warehouse is a retail store like Walmart\n- 2degrees is a mobile phone network\n- Paymypark is a car park\n\nExample response:\n\"id\": \"12345\", \"code\": \"GROCERY STORE 12345\", \"category\": \"Food\""
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        208
+      ],
+      "id": "3c97b023-9c73-4bc2-bed2-834b4a5679a1",
+      "name": "Classify codes"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "category_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        32,
+        0
+      ],
+      "id": "8b2717c4-bd83-4b4b-9593-fee38d3e5892",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a39b07ec-306f-4eb7-ba87-baf02e2600bc",
+              "leftValue": "={{ $json['output.category'] }}",
+              "rightValue": "unknown",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        208
+      ],
+      "id": "8fddbf8e-93ad-43c7-bcbd-3ed84f8c29bd",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        432
+      ],
+      "id": "63ace6e8-9ec8-48e4-a090-081879d2be30",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Gt3TKZxALbsoGj5Z",
+          "name": "PROD - OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"The original record ID from the input\"\n    },\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"The original bank transaction code\"\n    },\n    \"category\": {\n      \"type\": \"string\",\n      \"description\": \"The Dave Ramsey category that best matches the transaction\"\n    }\n  },\n  \"required\": [\"id\", \"code\", \"category\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        432
+      ],
+      "id": "a06efa27-5bdb-458b-8dd1-c0e1bd691858",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.category",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        848,
+        208
+      ],
+      "id": "0ba07c6b-5be7-4f9f-9aa4-4d05457132de",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "unique_codes",
+          "mode": "list",
+          "cachedResultName": "unique_codes"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.output.id }}",
+            "category": "={{ $json.output.category }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "code",
+              "displayName": "code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "occurrence_count",
+              "displayName": "occurrence_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        928,
+        384
+      ],
+      "id": "fd1ce773-76a4-408e-b431-5188fcbde6bc",
+      "name": "Save categories",
+      "credentials": {
+        "postgres": {
+          "id": "StXVcNKJOLRzEChH",
+          "name": "Postgres bank transactions"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n    \"api_key\": \"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\",\n    \"query\": \"What is {{ $json.code }}?\",\n    \"search_depth\": \"basic\",\n    \"include_answer\": false,\n    \"include_images\": false,\n    \"include_image_descriptions\": false,\n    \"include_raw_content\": false,\n    \"max_results\": 1,\n    \"include_domains\": [],\n    \"exclude_domains\": []\n}",
+        "options": {}
+      },
+      "id": "c7b79440-5350-4f2d-9ca1-92853058b013",
+      "name": "Get code descriptions",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        672,
+        -224
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "unique_details",
+          "mode": "list",
+          "cachedResultName": "unique_details"
+        },
+        "limit": 20,
+        "sort": {
+          "values": [
+            {
+              "column": "total_amount"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        208
+      ],
+      "id": "4b145aaa-0b00-42c0-8f13-bc1897e87674",
+      "name": "Get all transaction details",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "StXVcNKJOLRzEChH",
+          "name": "Postgres bank transactions"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Ramsey categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all transaction codes": {
+      "main": [
+        []
+      ]
+    },
+    "Get Ramsey categories": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify codes": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Get all transaction details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify codes",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify codes",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all transaction details": {
+      "main": [
+        [
+          {
+            "node": "Classify codes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "12111f3f29a2ab32b7d662ff792131aa190ca83ddf648527042c86c1bda83295"
+  }
+}
