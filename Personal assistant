@@ -1,0 +1,896 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "e145322d-c71f-47c9-816f-e23d6355979c",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        560
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Gt3TKZxALbsoGj5Z",
+          "name": "PROD - OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "27f29814-5daf-4781-af93-590e09edd0e7",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [
+        528,
+        112
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Gt3TKZxALbsoGj5Z",
+          "name": "PROD - OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "GetMaramataka",
+        "description": "Call this tool to get the Maramataka phase for  given date(s) and location",
+        "workflowId": {
+          "__rl": true,
+          "value": "LhFHVOuW4kFQWwja",
+          "mode": "list",
+          "cachedResultName": "Get maramataka"
+        }
+      },
+      "id": "64f61c26-8219-4b24-9a0d-7deaf4edbc11",
+      "name": "Get Maramataka",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// This code processes text for text-to-voice service by removing unwanted characters and formatting,\n// and replacing specific terms for better TTS pronunciation\n// Input: items[0].json.message.content.response containing the text to be processed\n\nfunction cleanupText(text) {\n    // Get the input text from the workflow data\n    //let text = $json.message.content.response;\n\n    // Step 1: Replace all combinations of carriage returns and newlines with a single space\n    // This converts any type of line breaks (\\r\\n, \\n\\r, \\n, \\r) into a space\n    text = text.replace(/[\\r\\n]+/g, ' ');\n\n    // Step 2: Complex character cleanup using regex\n    // - Removes all non-word characters except allowed punctuation (spaces, :, /, ., !, ?, -)\n    // - Removes colons unless they're between numbers (e.g., keeps 11:30 but removes other colons)\n    // - Removes forward slashes unless they're between numbers (e.g., keeps 5/6 but removes other slashes)\n    text = text.replace(/[^\\w\\s:\\/.,!?-]|(?<![0-9]):(?![0-9])|(?<![0-9])\\/(?![0-9])/g, '');\n\n    // Step 3: Replace multiple spaces with a single space\n    text = text.replace(/\\s+/g, ' ');\n\n    // Step 4: Remove leading and trailing whitespace\n    text = text.trim();\n\n    // Step 5: Replace \"5/6\" with \"5 and 6\" for better text-to-speech pronunciation\n    text = text.replace(\"5/6\", \"5 and 6\");\n\n    // Step 6: Replace abbreviation \"ppt\" with full word \"postponement\"\n    // Using word boundaries (\\b) to ensure we only replace \"ppt\" as a standalone word\n    // The 'i' flag makes it case insensitive, so it will replace PPT, ppt, Ppt, etc.\n    text = text.replace(/\\bppt\\b/gi, \"postponement\");\n\n    // Return object as required by n8n\n    return {'Clean response': text};\n}\n\n// Execute the function with the workflow data\nreturn cleanupText($json.message.content.response);"
+      },
+      "id": "f8874611-63af-4f18-afda-be5a24bb4a0a",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "id": "c325099e-b380-4ed3-9911-d0b7b28fe4d7",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        320
+      ],
+      "webhookId": "aeeb9d35-59aa-43f6-9d3b-d19e3d2d71e4",
+      "credentials": {
+        "telegramApi": {
+          "id": "AIY0Q3ifeexdbIiL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.voice.file_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "be4f384e-8e5d-442e-88fe-5811a09d533b",
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ae2620f5-b753-4d11-a4c3-1b4d0c018b0f",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        192,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are Steve Irwin. The enthusiastic Crocodile Hunter from Australia. You are always positive and keen to share your positivity. Your job is to reply to the user about their request using the result text below. \n\nWhen responding, first inform the user of the outcome using the result text. Second, if the result is about a task or event then offer suggestions to prepare in no more than two sentences. Finish by providing some of your wisdom about life in no more than two sentences.\n\nIf there is something negative in the calendar then change your tone accordingly. For example, if there is a funeral planned be sympathetic and dont start your response with \"Crikey!\", \"You beauty!\" or \"Struth!\". \n\nDont always start your response \"Crikey!\", use other phrases like \"You beauty!\" or \"Struth!\" etc or go straight into your response without such phrases.\n\nRemember your output is for busy people so be quick and do not include phrases like \"If there's anything more you need, just ask!\"\n\nProvide your text in one field called \"response\". \n\nresult: {{ $json.result.text }}\n\nExamples of preparation suggestions:\n\nIf there is a swimming event then say “Don’t forget the bathers and goggles”. If there is a dance event then say “Don’t forget the dance uniform”.\n\n"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "id": "90aba743-8a92-458b-8ee4-58199bdaa528",
+      "name": "Generate custom monologue text",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        1968,
+        352
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Gt3TKZxALbsoGj5Z",
+          "name": "PROD - OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Working on that now...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "8cf50400-8d76-468f-91b8-c89ea8e6a5e1",
+      "name": "Send acknowledgement message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -256,
+        320
+      ],
+      "webhookId": "70becd87-9b71-40da-a83f-af8d7ceac0f7",
+      "credentials": {
+        "telegramApi": {
+          "id": "AIY0Q3ifeexdbIiL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Telegram Trigger').item.json.message.voice.file_id }}"
+      },
+      "id": "df3862cf-ced1-4a01-b94f-1b0ed51c5978",
+      "name": "Get sound file",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        112
+      ],
+      "webhookId": "8f6939f9-b95d-4da9-9960-53c394ca0a26",
+      "credentials": {
+        "telegramApi": {
+          "id": "AIY0Q3ifeexdbIiL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Personal assistant').item.json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "bf573831-38b9-47ab-ab68-45f314bb8105",
+      "name": "Send text reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1728,
+        352
+      ],
+      "webhookId": "2cc1d1aa-3919-4c07-9acc-37d3822ac8c3",
+      "credentials": {
+        "telegramApi": {
+          "id": "AIY0Q3ifeexdbIiL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "binaryData": true,
+        "additionalFields": {
+          "fileName": "=data.mpeg"
+        }
+      },
+      "id": "7e298e6b-f6d9-466d-b1cf-0d029131d93c",
+      "name": "Send voice reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2752,
+        352
+      ],
+      "webhookId": "cc458b15-6103-425c-aceb-4b5a285b3f37",
+      "credentials": {
+        "telegramApi": {
+          "id": "AIY0Q3ifeexdbIiL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/YLbQE9U7P1K6rBNJWNSv",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "xi-api-key",
+              "value": "sk_85e5bd676a0f7ec30ea46e9bcb7f05e0797aafce73b1ed15"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=text",
+              "value": "={{ $json['Clean response'] }}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_turbo_v2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ba21f5db-d829-4426-8197-e43dba695452",
+      "name": "Translate reply to voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2528,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "name": "calendarAgent",
+        "description": "=Call this tool to create, update or delete calendar events.",
+        "workflowId": {
+          "__rl": true,
+          "value": "STe4JzSinyGZGDff",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        720
+      ],
+      "id": "b839b2aa-8346-4303-9a40-0d46b9db243f",
+      "name": "Calendar agent"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to search the internet",
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"api_key\": \"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\",\n    \"query\": \"{searchTerm}\",\n    \"search_depth\": \"basic\",\n    \"include_answer\": true,\n    \"topic\": \"general\",\n    \"include_raw_content\": true,\n    \"max_results\": 3\n} ",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "searchTerm",
+              "description": "What the user has requested to search the internet for",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1712,
+        768
+      ],
+      "id": "9a04cfe6-40d2-4e85-886f-826f47eb8c2f",
+      "name": "Tavily"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        768
+      ],
+      "id": "312e7de8-75d9-444d-b4b4-75013710a95f",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "guardians",
+          "mode": "list",
+          "cachedResultName": "guardians"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "telegram_id",
+              "value": "={{ parseInt($('Telegram Trigger').item.json.message.from.id).toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        320
+      ],
+      "id": "dad7627e-4214-4183-b44b-28591d3d1c19",
+      "name": "Get calendar id",
+      "credentials": {
+        "postgres": {
+          "id": "WHPrxzih2mzu73wA",
+          "name": "Postgres school events"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1168,
+        560
+      ],
+      "id": "10efc942-e8e8-4383-9159-0ab4ecc63377",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "name": "getEvents",
+        "description": "Call this tool to get calendar events.",
+        "workflowId": {
+          "__rl": true,
+          "value": "FGUvWnC4UfBjaJqE",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        1248,
+        720
+      ],
+      "id": "1334f429-534e-4bd5-942f-42d6f02af7a2",
+      "name": "Get events"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2798e0e7-48ca-49ef-a75b-924ddc279d24",
+              "name": "=text",
+              "value": "={{ $('Telegram Trigger').item.json.message.text + \" for calendarID(s): \" + $('Get calendar id').item.json.calendar_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f23bd0f-1730-4e6e-8661-6e52d6de6ef9",
+      "name": "Set query field",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2798e0e7-48ca-49ef-a75b-924ddc279d24",
+              "name": "=text",
+              "value": "={{ $json.text + \" for calendarID: \" + $('Get calendar id').item.json.calendar_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ee4d38d-464c-4087-9bca-4a107a4d7b7b",
+      "name": "Set query field1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "activity_log",
+          "mode": "list",
+          "cachedResultName": "activity_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "output": "={{ $json.output }}",
+            "intermediate_steps": "={{ $json.intermediateSteps[0] }}",
+            "agent": "Personal assistant"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intermediate_steps",
+              "displayName": "intermediate_steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agent",
+              "displayName": "agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1504,
+        352
+      ],
+      "id": "235d5d77-1e12-481b-b7f0-a96c201f23b8",
+      "name": "Activity log",
+      "credentials": {
+        "postgres": {
+          "id": "WHPrxzih2mzu73wA",
+          "name": "Postgres school events"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=# Overview\nYou are the ultimate personal assistant. Your job is to send the user's query to the correct tool. You should never be searching or creating events, you just need to call the correct tool.\n\n## Tools\n- getEvents: Use this tool to get events from calendars. DO NOT modify the query.\n- calendarAgent: Use this tool to create, update or delete calendar events. DO NOT modify the query.\n- Tavily: Use this tool to search the web\n\n## Examples\n- Input: What have I got on tomorrow? \n  - Action: Send the user query to getEvents tool. DO NOT modify the query. Example query: \n    \"What's on tomorrow for calendarID(s): \n     54df95a49876fbcd57bd969682530fe7e5e75c10b08fe738e357e5f7834f6f31@group.calendar.google.com and 0dtc3hgpd413llk4ao290871i0@group.calendar.google.com\"\n- Output: Provide the list of the events to the user\n\n## Final notes\n- Here is the current date/time: {{ DateTime.local().toFormat('cccc d LLLL yyyy HH:mm:ss') }}\n- When outputting events use the format returned to you by the tools - do not prefix the dates with # or any other formatting\n- If mor ethan one clanedar has been checked DO NOT include any calendar IDs in the output\n- Unless otherwise specified a week runs from Monday to the following Sunday",
+          "returnIntermediateSteps": true
+        }
+      },
+      "id": "a659df8c-350f-4777-9536-f334c5767888",
+      "name": "Personal assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1072,
+        352
+      ],
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "# CONTENT\n\nInsert content variable - ensure standard name for this variable by using a set node upstream of this agent\n\n# CONTEXT\n\nInsert context variable - ensure standard name for this variable by using a set node upstream of this agent\n",
+        "options": {
+          "systemMessage": "Insert prompt variable - ensure standard name for this variable by using a set node upstream of this agent\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -368,
+        -160
+      ],
+      "id": "8bf8e0d8-37d3-4534-87be-85cf637027ad",
+      "name": "AI Agent example from Custom AI studio",
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Set query field1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Maramataka": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Translate reply to voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send acknowledgement message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get sound file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set query field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate custom monologue text": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send acknowledgement message": {
+      "main": [
+        [
+          {
+            "node": "Get calendar id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get sound file": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send text reply": {
+      "main": [
+        []
+      ]
+    },
+    "Translate reply to voice": {
+      "main": [
+        [
+          {
+            "node": "Send voice reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get calendar id": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set query field": {
+      "main": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set query field1": {
+      "main": [
+        [
+          {
+            "node": "Personal assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activity log": {
+      "main": [
+        [
+          {
+            "node": "Send text reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personal assistant": {
+      "main": [
+        [
+          {
+            "node": "Activity log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Activity log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "12111f3f29a2ab32b7d662ff792131aa190ca83ddf648527042c86c1bda83295"
+  }
+}
